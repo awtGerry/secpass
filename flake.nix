@@ -1,4 +1,5 @@
 {
+
   description = "A Nix flake for secpass";
 
   inputs = {
