@@ -1,5 +1,5 @@
 {
-  description = "Iced example";
+  description = "A Nix flake for secpass";
 
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
@@ -24,8 +24,8 @@
           };
         in {
           packages = rec {
-            iced_nix = (rustPkgs.workspace.iced_nix {}).bin;
-            default = iced_nix;
+            secpass = (rustPkgs.workspace.secpass {}).bin;
+            default = secpass;
           };
           devShells.default = pkgs.mkShell rec {
             buildInputs = with pkgs; [

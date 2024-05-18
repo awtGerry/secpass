@@ -46,6 +46,7 @@ struct SecPassApp {
     name_value: String,
     user_value: String,
     passwd_value: String,
+    msg_color: iced::Color,
     error_msg: String,
     show_password: bool,
 }
@@ -75,6 +76,9 @@ impl Default for App {
     }
 }
 
+const RED: iced::Color = iced::Color::from_rgb8(210, 15, 57);
+const GREEN: iced::Color = iced::Color::from_rgb8(64, 160, 43);
+
 impl Application for SecPassApp {
     type Message = App; // Messages that can be sent to the app
 
@@ -89,6 +93,7 @@ impl Application for SecPassApp {
                 name_value: String::new(),
                 user_value: String::new(),
                 passwd_value: String::new(),
+                msg_color: iced::Color::from_rgb8(210, 15, 57),
                 error_msg: String::new(),
                 show_password: false,
             },
@@ -122,8 +127,10 @@ impl Application for SecPassApp {
             App::Login => {
                 let user = User::new(&self.user_value, &self.passwd_value);
                 if passwd::login_user(&user.username, &user.password) {
+                    self.msg_color = GREEN;
                     self.error_msg = String::from(format!("Welcome, {}!", user.username));
                 } else {
+                    self.msg_color = RED;
                     self.error_msg = String::from("Invalid username or password");
                 }
                 Command::none()
@@ -134,23 +141,29 @@ impl Application for SecPassApp {
                 if let Err(e) = passwd::check_password(&user.password) {
                     match e {
                         passwd::PasswordError::TooShort => {
+                            self.msg_color = RED;
                             self.error_msg = String::from("Password needs to have at least 8 characters");
                         }
                         passwd::PasswordError::NoUppercase => {
+                            self.msg_color = RED;
                             self.error_msg = String::from("Password has no uppercase letter");
                         }
                         passwd::PasswordError::NoLowercase => {
+                            self.msg_color = RED;
                             self.error_msg = String::from("Password has no lowercase letter");
                         }
                         passwd::PasswordError::NoNumber => {
+                            self.msg_color = RED;
                             self.error_msg = String::from("Password needs to have at least one number");
                         }
                         passwd::PasswordError::NoSpecial => {
+                            self.msg_color = RED;
                             self.error_msg = String::from("Password needs to have at least one special character");
                         }
                     }
                 } else {
-                    self.error_msg = String::from("");
+                    self.msg_color = GREEN;
+                    self.error_msg = String::from("Account created successfully");
                     passwd::register_user(&user.username, &user.password);
                 }
                 Command::none()
@@ -194,7 +207,7 @@ impl Application for SecPassApp {
                         checkbox("Show password", self.show_password)
                             .on_toggle(App::ToggleShowPassword)
                     };
-                    let error_msg = text(&self.error_msg).style(iced::Color::from_rgb8(210, 15, 57)).size(14);
+                    let error_msg = text(&self.error_msg).size(14);
 
                     // Separate the inputs with a 20px space between them
                     let inputs = column![ user_input, passwd_input ].spacing(20);
@@ -269,7 +282,7 @@ impl Application for SecPassApp {
                         checkbox("Show password", self.show_password)
                             .on_toggle(App::ToggleShowPassword)
                     };
-                    let error_msg = text(&self.error_msg).style(iced::Color::from_rgb8(210, 15, 57)).size(14);
+                    let error_msg = text(&self.error_msg).size(14);
 
                     // Separate the inputs with a 20px space between them
                     let inputs = column![ name_input, user_input, passwd_input ].spacing(20);
