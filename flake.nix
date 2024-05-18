@@ -21,7 +21,7 @@
           };
           rustPkgs = pkgs.rustBuilder.makePackageSet {
             inherit rustVersion;
-            packageFun = import ./Cargo.nix;
+            packageFun = import ./utils/nix/Cargo.nix;
           };
         in {
           packages = rec {
