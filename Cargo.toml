@@ -6,6 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+axum = "0.7.5"
 bcrypt = "0.15.1"
-iced = { version = "0.12.1", features = ["image", "debug" ] }
 sqlite = "0.36.0"
+iced = { version = "0.12.1", features = ["image", "debug"] }
+serde = { version = "1.0.203", features = ["derive"] }
+reqwest = { version = "0.12.4", features = ["json"] }
+tokio = { version = "1.37.0", features = ["full"] }

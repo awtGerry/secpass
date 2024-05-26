@@ -14,7 +14,8 @@ pub fn create_db() -> sqlite::Connection {
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
             username TEXT NOT NULL,
-            password TEXT NOT NULL
+            password TEXT NOT NULL,
+            phone TEXT NOT NULL
         );
         ",
     )
@@ -23,10 +24,10 @@ pub fn create_db() -> sqlite::Connection {
 }
 
 // Insert a new user into the database with the password hashed
-pub fn insert_user(conn: &sqlite::Connection, username: &str, password: &str) {
+pub fn insert_user(conn: &sqlite::Connection, username: &str, password: &str, phone: &str) {
     let query = format!(
-        "INSERT INTO users (username, password) VALUES ('{}', '{}');",
-        username, password
+        "INSERT INTO users (username, password, phone) VALUES ('{}', '{}', '{}');",
+        username, password, phone
     );
 
     conn.execute(&query).unwrap();

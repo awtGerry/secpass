@@ -11,6 +11,7 @@
 
 mod passwd;
 mod db;
+mod mfa;
 
 use crate::passwd::User;
 
@@ -46,16 +47,19 @@ struct SecPassApp {
     name_value: String,
     user_value: String,
     passwd_value: String,
+    phone_value: String,
     msg_color: iced::Color,
     error_msg: String,
     show_password: bool,
+    verification_code: String,
 }
 
 #[derive(Debug, Default)]
 enum Pages {
     #[default]
     Login,
-    Register
+    Register,
+    MFA,
 }
 
 #[derive(Debug, Clone)]
@@ -63,11 +67,14 @@ enum App {
     NameChanged(String),
     UserChanged(String),
     PasswordChanged(String),
+    PhoneChanged(String),
     ToggleShowPassword(bool),
+    CodeChanged(String),
     Login,
     Register,
     ChangeToLogin,
     ChangeToRegister,
+    SendCode,
 }
 
 impl Default for App {
@@ -90,9 +97,11 @@ impl Application for SecPassApp {
                 name_value: String::new(),
                 user_value: String::new(),
                 passwd_value: String::new(),
+                phone_value: String::new(),
                 msg_color: iced::Color::from_rgb8(210, 15, 57),
                 error_msg: String::new(),
                 show_password: false,
+                verification_code: String::new(),
             },
             Command::none()
         )
@@ -116,6 +125,10 @@ impl Application for SecPassApp {
                 self.passwd_value = value;
                 Command::none()
             }
+            App::PhoneChanged(value) => {
+                self.phone_value = value;
+                Command::none()
+            }
             App::ToggleShowPassword(show) => {
                 self.show_password = show;
                 Command::none()
@@ -124,10 +137,11 @@ impl Application for SecPassApp {
             App::Login => {
                 let red: iced::Color = iced::Color::from_rgb8(210, 15, 57);
                 let green: iced::Color = iced::Color::from_rgb8(64, 160, 43);
-                let user = User::new(&self.user_value, &self.passwd_value);
+                let user = User::new(&self.user_value, &self.passwd_value, "");
                 if passwd::login_user(&user.username, &user.password) {
                     self.msg_color = green;
-                    self.error_msg = String::from(format!("Welcome, {}!", user.username));
+                    // self.error_msg = String::from(format!("Welcome, {}!", user.username));
+                    self.pages = Pages::MFA;
                 } else {
                     self.msg_color = red;
                     self.error_msg = String::from("Invalid username or password");
@@ -135,8 +149,9 @@ impl Application for SecPassApp {
                 Command::none()
             }
 
+            /* TODO: Validate phone number */
             App::Register => {
-                let user = User::new(&self.user_value, &self.passwd_value);
+                let user = User::new(&self.user_value, &self.passwd_value, &self.phone_value);
                 let red: iced::Color = iced::Color::from_rgb8(210, 15, 57);
                 let green: iced::Color = iced::Color::from_rgb8(64, 160, 43);
                 if let Err(e) = passwd::check_password(&user.password) {
@@ -171,10 +186,19 @@ impl Application for SecPassApp {
             }
             App::ChangeToLogin => {
                 self.pages = Pages::Login;
+                self.show_password = false;
                 Command::none()
             }
             App::ChangeToRegister => {
                 self.pages = Pages::Register;
+                self.show_password = false;
+                Command::none()
+            }
+            App::CodeChanged(value) => {
+                self.verification_code = value;
+                Command::none()
+            }
+            App::SendCode => {
                 Command::none()
             }
         }
@@ -278,6 +302,10 @@ impl Application for SecPassApp {
                         .on_input(App::PasswordChanged)
                         .width(480)
                         .padding(10);
+                    let phone_input = TextInput::new(" Enter phone number", &self.phone_value)
+                        .on_input(App::PhoneChanged)
+                        .width(480)
+                        .padding(10);
 
                     let check = {
                         checkbox("Show password", self.show_password)
@@ -286,7 +314,7 @@ impl Application for SecPassApp {
                     let error_msg = text(&self.error_msg).size(14).style(self.msg_color);
 
                     // Separate the inputs with a 20px space between them
-                    let inputs = column![ name_input, user_input, passwd_input ].spacing(20);
+                    let inputs = column![ name_input, user_input, passwd_input, phone_input ].spacing(20);
                     // Put the error message below the inputs
                     let msg_container = row![check, error_msg].spacing(10);
 
@@ -300,7 +328,7 @@ impl Application for SecPassApp {
                     column![
                         button("Register")
                             .on_press_maybe(
-                                if self.user_value.is_empty() || self.passwd_value.is_empty() {
+                                if self.user_value.is_empty() || self.passwd_value.is_empty() || self.phone_value.is_empty() {
                                     None
                                 } else {
                                     Some(App::Register)
@@ -325,6 +353,33 @@ impl Application for SecPassApp {
                 .spacing(20)
                 .align_items(iced::Alignment::Center);
 
+                container(content).width(iced::Length::Fill).height(iced::Length::Fill).into()
+            }
+
+            // Multi-factor authentication page
+            Pages::MFA => {
+                let verify_title = text("Verify your identity")
+                    .size(24)
+                    .style(iced::Color::from_rgb8(136, 57, 239))
+                    .width(iced::Length::Fill)
+                    .horizontal_alignment(iced::alignment::Horizontal::Center);
+                let code_input = TextInput::new("Enter code", &self.verification_code)
+                    .on_input(|code| App::CodeChanged(code))
+                    .width(480)
+                    .padding(10);
+                let send_button = button("Send code")
+                    .on_press(App::SendCode)
+                    .width(480)
+                    .padding([10, 20]);
+
+                let content = column![
+                    verify_title,
+                    code_input,
+                    send_button
+                ]
+                .padding(20)
+                .spacing(20)
+                .align_items(iced::Alignment::Center);
                 container(content).width(iced::Length::Fill).height(iced::Length::Fill).into()
             }
         };

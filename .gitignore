@@ -2,3 +2,4 @@
 /result-bin
 *.db
 *Cargo.nix
+.env
