@@ -1,18 +1,17 @@
 use crate::db;
+use crate::mfa;
 use bcrypt;
 
 pub struct User {
     pub username: String,
     pub password: String,
-    pub phone: String,
 }
 
 impl User {
-    pub fn new(username: &str, password: &str, phone: &str) -> User {
+    pub fn new(username: &str, password: &str) -> User {
         User {
             username: username.to_string(),
             password: password.to_string(),
-            phone: phone.to_string(),
         }
     }
 }
@@ -24,12 +23,6 @@ pub enum PasswordError {
     NoLowercase,
     NoNumber,
     NoSpecial,
-}
-
-#[allow(unused)]
-pub enum PhoneError {
-    InvalidPhone,
-    WrongCode,
 }
 
 // Function to check if the password meets the requirements
@@ -77,19 +70,19 @@ pub fn check_password(password: &str) -> Result<(), PasswordError> {
 
 // Function to register a user in the database
 // Here the password will be hashed and that hash will be stored in the database
-pub fn register_user(username: &str, password: &str, phone: &str) {
-    let user = User::new(username, password, phone);
+pub fn register_user(username: &str, password: &str) {
+    let user = User::new(username, password);
 
     let hashed_password = bcrypt::hash(&user.password, bcrypt::DEFAULT_COST).unwrap();
     let conn = db::create_db();
-    db::insert_user(&conn, &user.username, &hashed_password, &user.phone);
+    db::insert_user(&conn, &user.username, &hashed_password);
 }
 
 // Function to login a user
 // Here the password will be hashed and that hash will be compared with the hash stored in the database
 #[allow(unused)]
 pub fn login_user(username: &str, password: &str) -> bool {
-    let user = User::new(username, password, "");
+    let user = User::new(username, password);
 
     let conn = db::create_db();
     let query = format!(
@@ -104,7 +97,6 @@ pub fn login_user(username: &str, password: &str) -> bool {
             match column {
                 "username" => user.username = String::from(value.unwrap()),
                 "password" => user.password = String::from(value.unwrap()),
-                "phone" => user.phone = String::from(value.unwrap()),
                 _ => (),
             }
         }
@@ -114,8 +106,7 @@ pub fn login_user(username: &str, password: &str) -> bool {
             let hashed_password = bcrypt::verify(&password, &user.password).unwrap();
             if hashed_password {
                 found = true;
-                // TODO: send phone code (with phone number)
-                // mfa::
+                mfa::Mfa::new(user.username.clone()).send();
             }
         }
 

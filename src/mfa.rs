@@ -1,70 +1,53 @@
 /* multi-factor authentication */
 
-use serde::{Deserialize, Serialize};
-use crate::passwd::User;
+use dotenv::dotenv;
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::{Message, SmtpTransport, Transport};
 
-/* Struct to hold the user (only needed) */
-#[derive(Deserialize)]
-pub struct VerifyCode {
-    // pub phone: String,
-    pub user: User,
-    pub code: String,
+pub struct Mfa {
+    pub email: String, // To Email
+    pub code: u16, // The code
+    key: String, // smtp_key: defined in the .env file
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct VerifyCodeResponse {
-    pub status: String
-}
+const EMAIL: &str = "758071001@smtp-brevo.com";
+const HOST: &str = "smtp-relay.sendinblue.com";
 
-pub struct TwilioService {
-    service_sid: String,
-    ssid: String,
-    auth_token: String,
-}
-
-impl TwilioService {
-    pub fn new() -> TwilioService {
-        TwilioService {
-            service_sid: std::env::var("TWILIO_SERVICE_SID").unwrap(),
-            ssid: std::env::var("TWILIO_ACCOUNT_SID").unwrap(),
-            auth_token: std::env::var("TWILIO_AUTH_TOKEN").unwrap(),
+impl Mfa {
+    pub fn new(email: String) -> Self {
+        dotenv().ok();
+        // Generate a random 4 digit code
+        let mfa_code = rand::random::<u16>() % 10000;
+        let smtp_key = std::env::var("SMTP_KEY").expect("SMTP_KEY must be set");
+        println!("Email: {}", email);
+        println!("MFA code: {}", mfa_code);
+        println!("SMTP key: {}", smtp_key);
+        Self {
+            email,
+            code: mfa_code,
+            key: smtp_key,
         }
     }
 
-    pub async fn send_otp(&self, phone: String) -> Result<(), &'static str> {
-        let client = reqwest::Client::new();
-        let url = format!(
-            "https://verify.twilio.com/v2/Services/{}/Verifications",
-            self.service_id
-        );
-
-        let body = format!(
-            r#"{{"To":"{}","Channel":"sms"}}"#,
-            phone
-        );
-
-        let res = client
-            .post(&url)
-            .basic_auth(&self.ssid, Some(&self.auth_token))
-            .header("Content-Type", "application/json")
-            .body(body)
-            .send()
-            .await
+    pub fn send(&self) {
+        let to_email = self.email.clone();
+        let key = self.key.clone();
+        let email = Message::builder()
+            .from(EMAIL.parse().unwrap())
+            .to(to_email.parse().unwrap())
+            .subject("Secpass verification code")
+            .body(format!("Your verification code is: {}", self.code))
             .unwrap();
 
-        if res.status().is_success() {
-            Ok(())
-        } else {
-            Err("Failed to send OTP")
-        }
-    }
-}
+        let creds = Credentials::new(EMAIL.to_string(), key);
+        let mailer = SmtpTransport::relay(HOST)
+            .unwrap()
+            .credentials(creds)
+            .build();
 
-impl VerifyCode {
-    pub fn new(usr: User) -> VerifyCode {
-        VerifyCode {
-            user: usr,
-            code: "".to_string(),
+        match mailer.send(&email) {
+            Ok(_) => println!("Email sent successfully"),
+            Err(e) => println!("Could not send email: {:?}", e),
         }
     }
 }
