@@ -7,6 +7,7 @@ use lettre::{Message, SmtpTransport, Transport};
 pub struct Mfa {
     pub email: String, // To Email
     pub code: u16, // The code
+    pub msg: String, // The message if any
     key: String, // smtp_key: defined in the .env file
 }
 
@@ -25,6 +26,7 @@ impl Mfa {
         Self {
             email,
             code: mfa_code,
+            msg: String::new(),
             key: smtp_key,
         }
     }

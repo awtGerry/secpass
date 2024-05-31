@@ -53,6 +53,13 @@ struct SecPassApp {
     verification_code: String,
 }
 
+#[derive(Default)]
+pub enum CodeMSG {
+    #[default]
+    Error,
+    Success
+}
+
 #[derive(Debug, Default)]
 enum Pages {
     #[default]
@@ -191,6 +198,7 @@ impl Application for SecPassApp {
                 Command::none()
             }
             App::SendCode => {
+                self.error_msg = String::from("Welcome again!");
                 Command::none()
             }
         }
@@ -359,11 +367,13 @@ impl Application for SecPassApp {
                     .on_press(App::SendCode)
                     .width(480)
                     .padding([10, 20]);
+                let msg = text(&self.error_msg).size(14);
 
                 let content = column![
                     verify_title,
                     code_input,
-                    send_button
+                    send_button,
+                    msg
                 ]
                 .padding(20)
                 .spacing(20)
