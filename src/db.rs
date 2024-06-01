@@ -10,19 +10,17 @@ use sqlite;
 pub fn create_db() -> sqlite::Connection {
     let conn = sqlite::open("secpass.db").unwrap();
     conn.execute(
-        "
-        CREATE TABLE IF NOT EXISTS users (
+        "CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
-            email TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL,
             name TEXT NOT NULL,
             father_lastname TEXT NOT NULL,
-            mother_lastname TEXT,
-            age INTEGER NOT NULL,
-        );
-        ",
-    )
-    .unwrap();
+            mother_lastname TEXT NOT NULL,
+            age INTEGER NOT NULL
+        );"
+    ).unwrap();
+
     conn
 }
 

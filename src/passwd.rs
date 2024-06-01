@@ -3,14 +3,14 @@ use crate::mfa;
 use bcrypt;
 
 pub struct User {
-    pub username: String,
+    pub email: String,
     pub password: String,
 }
 
 impl User {
-    pub fn new(username: &str, password: &str) -> User {
+    pub fn new(email: &str, password: &str) -> User {
         User {
-            username: username.to_string(),
+            email: email.to_string(),
             password: password.to_string(),
         }
     }
@@ -70,10 +70,10 @@ pub fn check_password(password: &str) -> Result<(), PasswordError> {
 
 // Function to register a user in the database
 // Here the password will be hashed and that hash will be stored in the database
-pub fn register_user(username: &str, password: &str, name: &str, father_lastname: &str, mother_lastname: &str, age: u8) -> String {
+pub fn register_user(email: &str, password: &str, name: &str, father_lastname: &str, mother_lastname: &str, age: u8) -> String {
     let hashed_password = bcrypt::hash(password, bcrypt::DEFAULT_COST).unwrap();
     let conn = db::create_db();
-    if db::insert_user(&conn, username, &hashed_password, name, father_lastname, mother_lastname, age) {
+    if db::insert_user(&conn, email, &hashed_password, name, father_lastname, mother_lastname, age) {
         return String::from("Email registered successfully");
     } else {
         return String::from("Email already exists");
@@ -83,13 +83,13 @@ pub fn register_user(username: &str, password: &str, name: &str, father_lastname
 // Function to login a user
 // Here the password will be hashed and that hash will be compared with the hash stored in the database
 #[allow(unused)]
-pub fn login_user(username: &str, password: &str) -> bool {
-    let user = User::new(username, password);
+pub fn login_user(email: &str, password: &str) -> bool {
+    let user = User::new(email, password);
 
     let conn = db::create_db();
     let query = format!(
-        "SELECT * FROM users WHERE username = '{}';",
-        user.username
+        "SELECT * FROM users WHERE email = '{}';",
+        user.email
     );
 
     let mut found = false;
@@ -97,18 +97,18 @@ pub fn login_user(username: &str, password: &str) -> bool {
         let mut user = User::new("", "");
         for &(column, value) in pairs.iter() {
             match column {
-                "username" => user.username = String::from(value.unwrap()),
+                "email" => user.email = String::from(value.unwrap()),
                 "password" => user.password = String::from(value.unwrap()),
                 _ => (),
             }
         }
 
-        if user.username == username {
+        if user.email == email {
             // Decrypt the database password
             let hashed_password = bcrypt::verify(&password, &user.password).unwrap();
             if hashed_password {
                 found = true;
-                mfa::Mfa::new(user.username.clone()).send();
+                mfa::Mfa::new(user.email.clone()).send();
             }
         }
 

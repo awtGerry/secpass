@@ -176,12 +176,12 @@ impl Application for SecPassApp {
                 let red: iced::Color = iced::Color::from_rgb8(210, 15, 57);
                 let green: iced::Color = iced::Color::from_rgb8(64, 160, 43);
                 let user = User::new(&self.email_value, &self.passwd_value);
-                if passwd::login_user(&user.username, &user.password) {
+                if passwd::login_user(&user.email, &user.password) {
                     self.msg_color = green;
                     self.pages = Pages::MFA;
                 } else {
                     self.msg_color = red;
-                    self.error_msg = String::from("Invalid username or password");
+                    self.error_msg = String::from("Invalid email or password");
                 }
                 Command::none()
             }
@@ -217,7 +217,7 @@ impl Application for SecPassApp {
                     self.msg_color = green;
                     let age = self.age_value.parse::<u8>().unwrap();
                     let can_register = passwd::register_user(
-                        &user.username,
+                        &user.email,
                         &user.password,
                         &self.name_value,
                         &self.father_lm_value,

@@ -1,8 +1,8 @@
 /* multi-factor authentication */
 
-use serde::{Deserialize, Serialize};
-use crate::passwd::User;
 use dotenv::dotenv;
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::{Message, SmtpTransport, Transport};
 
 pub struct Mfa {
     pub email: String, // To Email
