@@ -44,11 +44,18 @@ fn main() -> iced::Result {
 
 struct SecPassApp {
     pages: Pages,
+
     name_value: String,
-    user_value: String,
+    father_lm_value: String,
+    mather_lm_value: String,
+    age_value: String,
+
+    email_value: String,
     passwd_value: String,
+
     msg_color: iced::Color,
     error_msg: String,
+
     show_password: bool,
     verification_code: String,
 }
@@ -64,8 +71,11 @@ enum Pages {
 #[derive(Debug, Clone)]
 enum App {
     NameChanged(String),
-    UserChanged(String),
+    FatherLMChanged(String),
+    MotherLMChanged(String),
+    EmailChanged(String),
     PasswordChanged(String),
+    AgeChanged(String),
     ToggleShowPassword(bool),
     CodeChanged(String),
     Login,
@@ -92,11 +102,18 @@ impl Application for SecPassApp {
         (
             Self {
                 pages: Pages::Login,
+
                 name_value: String::new(),
-                user_value: String::new(),
+                father_lm_value: String::new(),
+                mather_lm_value: String::new(),
+                age_value: String::new(),
+
+                email_value: String::new(),
                 passwd_value: String::new(),
+
                 msg_color: iced::Color::from_rgb8(210, 15, 57),
                 error_msg: String::new(),
+
                 show_password: false,
                 verification_code: String::new(),
             },
@@ -114,8 +131,29 @@ impl Application for SecPassApp {
                 self.name_value = value;
                 Command::none()
             }
-            App::UserChanged(value) => {
-                self.user_value = value;
+            App::FatherLMChanged(value) => {
+                self.father_lm_value = value;
+                Command::none()
+            }
+            App::MotherLMChanged(value) => {
+                self.mather_lm_value = value;
+                Command::none()
+            }
+            App::AgeChanged(value) => {
+                self.age_value = value;
+                Command::none()
+            }
+            App::EmailChanged(value) => {
+                self.email_value = value;
+                // Validate that the email is a valid email
+                // This is just a simple validation, it doesn't check if the email is real
+                // It just checks if the email has the format of an email
+                if !self.email_value.contains('@') || !self.email_value.contains('.') {
+                    self.error_msg = String::from("Invalid email");
+                } else {
+                    self.error_msg = String::new();
+                }
+
                 Command::none()
             }
             App::PasswordChanged(value) => {
@@ -130,10 +168,9 @@ impl Application for SecPassApp {
             App::Login => {
                 let red: iced::Color = iced::Color::from_rgb8(210, 15, 57);
                 let green: iced::Color = iced::Color::from_rgb8(64, 160, 43);
-                let user = User::new(&self.user_value, &self.passwd_value);
+                let user = User::new(&self.email_value, &self.passwd_value);
                 if passwd::login_user(&user.username, &user.password) {
                     self.msg_color = green;
-                    // self.error_msg = String::from(format!("Welcome, {}!", user.username));
                     self.pages = Pages::MFA;
                 } else {
                     self.msg_color = red;
@@ -143,7 +180,7 @@ impl Application for SecPassApp {
             }
 
             App::Register => {
-                let user = User::new(&self.user_value, &self.passwd_value);
+                let user = User::new(&self.email_value, &self.passwd_value);
                 let red: iced::Color = iced::Color::from_rgb8(210, 15, 57);
                 let green: iced::Color = iced::Color::from_rgb8(64, 160, 43);
                 if let Err(e) = passwd::check_password(&user.password) {
@@ -171,8 +208,16 @@ impl Application for SecPassApp {
                     }
                 } else {
                     self.msg_color = green;
-                    self.error_msg = String::from("Account created successfully");
-                    passwd::register_user(&user.username, &user.password);
+                    let age = self.age_value.parse::<u8>().unwrap();
+                    let can_register = passwd::register_user(
+                        &user.username,
+                        &user.password,
+                        &self.name_value,
+                        &self.father_lm_value,
+                        &self.mather_lm_value,
+                        age,
+                    );
+                    self.error_msg = can_register;
                 }
                 Command::none()
             }
@@ -191,6 +236,7 @@ impl Application for SecPassApp {
                 Command::none()
             }
             App::SendCode => {
+                self.error_msg = String::from("Welcome aboard!");
                 Command::none()
             }
         }
@@ -210,8 +256,8 @@ impl Application for SecPassApp {
                 };
 
                 let user_fields = {
-                    let user_input = TextInput::new("󰁥  Enter email", &self.user_value)
-                        .on_input(App::UserChanged)
+                    let user_input = TextInput::new("󰁥  Enter email", &self.email_value)
+                        .on_input(App::EmailChanged)
                         .width(480)
                         .padding(10);
                     let passwd_input = TextInput::new("  Enter password", &self.passwd_value)
@@ -241,7 +287,7 @@ impl Application for SecPassApp {
                     column![
                         button("Login")
                             .on_press_maybe(
-                                if self.user_value.is_empty() || self.passwd_value.is_empty() {
+                                if self.email_value.is_empty() || self.passwd_value.is_empty() {
                                     None
                                 } else {
                                     Some(App::Login)
@@ -281,18 +327,30 @@ impl Application for SecPassApp {
                 };
 
                 let user_fields = {
-                    let name_input = TextInput::new("  Enter name", &self.name_value)
+                    let name_input = TextInput::new(" Enter name *", &self.name_value)
                         .on_input(App::NameChanged)
-                        .width(480)
+                        .width(380)
                         .padding(10);
-                    let user_input = TextInput::new("󰁥  Enter email", &self.user_value)
-                        .on_input(App::UserChanged)
-                        .width(480)
+                    let father_lastname_input = TextInput::new(" Enter father lastname *", &self.father_lm_value)
+                        .on_input(App::FatherLMChanged)
+                        .width(380)
                         .padding(10);
-                    let passwd_input = TextInput::new("  Enter password", &self.passwd_value)
+                    let mother_lastname_input = TextInput::new(" Enter mother lastname", &self.mather_lm_value)
+                        .on_input(App::MotherLMChanged)
+                        .width(380)
+                        .padding(10);
+                    let age_changed = TextInput::new(" Enter your age *", &self.age_value)
+                        .on_input(App::AgeChanged)
+                        .width(380)
+                        .padding(10);
+                    let user_input = TextInput::new("󰁥  Enter email *", &self.email_value)
+                        .on_input(App::EmailChanged)
+                        .width(380)
+                        .padding(10);
+                    let passwd_input = TextInput::new("  Enter password *", &self.passwd_value)
                         .secure(if self.show_password { false } else { true })
                         .on_input(App::PasswordChanged)
-                        .width(480)
+                        .width(380)
                         .padding(10);
 
                     let check = {
@@ -302,7 +360,14 @@ impl Application for SecPassApp {
                     let error_msg = text(&self.error_msg).size(14).style(self.msg_color);
 
                     // Separate the inputs with a 20px space between them
-                    let inputs = column![ name_input, user_input, passwd_input ].spacing(20);
+                    let inputs = column![
+                        name_input,
+                        father_lastname_input,
+                        mother_lastname_input,
+                        age_changed,
+                        user_input,
+                        passwd_input,
+                    ].spacing(20);
                     // Put the error message below the inputs
                     let msg_container = row![check, error_msg].spacing(10);
 
@@ -316,7 +381,10 @@ impl Application for SecPassApp {
                     column![
                         button("Register")
                             .on_press_maybe(
-                                if self.user_value.is_empty() || self.passwd_value.is_empty() {
+                                if self.email_value.is_empty() || self.passwd_value.is_empty() ||
+                                    self.name_value.is_empty() || self.father_lm_value.is_empty() ||
+                                    self.age_value.is_empty()
+                                {
                                     None
                                 } else {
                                     Some(App::Register)

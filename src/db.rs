@@ -13,8 +13,12 @@ pub fn create_db() -> sqlite::Connection {
         "
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
-            username TEXT NOT NULL,
-            password TEXT NOT NULL
+            email TEXT NOT NULL,
+            password TEXT NOT NULL,
+            name TEXT NOT NULL,
+            father_lastname TEXT NOT NULL,
+            mother_lastname TEXT,
+            age INTEGER NOT NULL,
         );
         ",
     )
@@ -23,13 +27,39 @@ pub fn create_db() -> sqlite::Connection {
 }
 
 // Insert a new user into the database with the password hashed
-pub fn insert_user(conn: &sqlite::Connection, username: &str, password: &str) {
-    let query = format!(
-        "INSERT INTO users (username, password) VALUES ('{}', '{}');",
-        username, password
-    );
+pub fn insert_user(conn: &sqlite::Connection, email: &str, password: &str, name: &str, father_lastname: &str, mother_lastname: &str, age: u8) -> bool {
+    // Check if email is already register
+    let mut email_exists = false;
+    let email_check = format!("SELECT * FROM users WHERE email = '{}';", email);
+    conn.iterate(email_check, |pairs| {
+        for &(column, _value) in pairs.iter() {
+            if column == "email" {
+                email_exists = true;
+            }
+        }
 
+        true
+    }).unwrap();
+
+    if !email_exists {
+        return false;
+    }
+
+    let query = format!(
+        "INSERT INTO users (
+            email,
+            password,
+            name,
+            father_lastname,
+            mother_lastname,
+            age
+        )
+        VALUES ('{}', '{}', '{}', '{}', '{}', '{}');",
+        email, password, name, father_lastname, mother_lastname, age
+    );
     conn.execute(&query).unwrap();
+    
+    true
 }
 
 // I'll keep it for testing purposes

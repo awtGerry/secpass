@@ -70,12 +70,14 @@ pub fn check_password(password: &str) -> Result<(), PasswordError> {
 
 // Function to register a user in the database
 // Here the password will be hashed and that hash will be stored in the database
-pub fn register_user(username: &str, password: &str) {
-    let user = User::new(username, password);
-
-    let hashed_password = bcrypt::hash(&user.password, bcrypt::DEFAULT_COST).unwrap();
+pub fn register_user(username: &str, password: &str, name: &str, father_lastname: &str, mother_lastname: &str, age: u8) -> String {
+    let hashed_password = bcrypt::hash(password, bcrypt::DEFAULT_COST).unwrap();
     let conn = db::create_db();
-    db::insert_user(&conn, &user.username, &hashed_password);
+    if db::insert_user(&conn, username, &hashed_password, name, father_lastname, mother_lastname, age) {
+        return String::from("Email registered successfully");
+    } else {
+        return String::from("Email already exists");
+    }
 }
 
 // Function to login a user
