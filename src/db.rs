@@ -1,4 +1,5 @@
 use sqlite;
+use crate::user::{User, Role};
 
 /*
  * This file contains the functions to interact with the SQLite database.
@@ -7,17 +8,11 @@ use sqlite;
  * - insert_user: inserts a new user into the database and hashes the password with bcrypt
  */
 
-pub struct User {
+pub struct Product {
     id: u8,
-    username: &str,
-    password: &str,
-    role: Role
-}
-
-pub enum Role {
-    Admin,
-    Client,
-    Worker
+    name: String,
+    price: f32,
+    quantity: u8
 }
 
 pub fn create_db() -> sqlite::Connection {
@@ -33,44 +28,26 @@ fn create_tables(conn: &sqlite::Connection) -> Result<(), sqlite::Error> {
             id INTEGER PRIMARY KEY,
             username TEXT NOT NULL,
             password TEXT NOT NULL,
-            role FOREIGN KEY REFERENCES roles(id)
+            role INTEGER NOT NULL,
+            FOREIGN KEY (role) REFERENCES roles(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            price REAL NOT NULL,
+            quantity INTEGER NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS roles (
             id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL
+            role TEXT NOT NULL
         );
+
+        INSERT OR IGNORE INTO roles (role) VALUES ('admin');
+        INSERT OR IGNORE INTO roles (role) VALUES ('client');
+        INSERT OR IGNORE INTO roles (role) VALUES ('worker');
         ",
     )
 }
 
-// Insert a new user into the database with the password hashed
-pub fn insert_user(conn: &sqlite::Connection, username: &str, password: &str, role: Role) {
-    let role = match role {
-        Role::Admin => String::from("admin"),
-        Role::Client => String::from("client"),
-        Role::Worker => String::from("worker")
-    }
-
-    let query = format!(
-        "INSERT INTO users (username, password, role)
-        VALUES ('{}', '{}', {});",
-        username, password, role
-    );
-
-    conn.execute(&query).unwrap();
-}
-
-// I'll keep it for testing purposes
-#[allow(unused)]
-pub fn get_all_users(conn: &sqlite::Connection) -> Vec<User> {
-    let query = "SELECT * FROM users;";
-
-    conn.iterate(query, |pairs| {
-        for &(column, value) in pairs.iter() {
-            println!("{:?} = {:?}", column, value);
-        }
-
-        true
-    }).unwrap();
-}

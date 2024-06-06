@@ -1,14 +1,8 @@
 /* multi-factor authentication */
 
-<<<<<<< Updated upstream
 use dotenv::dotenv;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
-=======
-use serde::{Deserialize, Serialize};
-use crate::passwd::User;
-use dotenv::dotenv;
->>>>>>> Stashed changes
 
 pub struct Mfa {
     pub email: String, // To Email
@@ -20,7 +14,6 @@ pub struct Mfa {
 const EMAIL: &str = "758071001@smtp-brevo.com";
 const HOST: &str = "smtp-relay.sendinblue.com";
 
-<<<<<<< Updated upstream
 impl Mfa {
     pub fn new(email: String) -> Self {
         dotenv().ok();
@@ -35,21 +28,6 @@ impl Mfa {
             code: mfa_code,
             msg: String::new(),
             key: smtp_key,
-=======
-pub struct TwilioService {
-    service_sid: String,
-    ssid: String,
-    auth_token: String,
-}
-
-impl TwilioService {
-    pub fn new() -> TwilioService {
-        dotenv().ok();
-        TwilioService {
-            service_sid: std::env::var("TWILIO_SERVICE_SID").expect("TWILIO_SERVICE_SID not found"),
-            ssid: std::env::var("TWILIO_ACCOUNT_SID").expect("TWILIO_ACCOUNT_SID not found"),
-            auth_token: std::env::var("TWILIO_AUTH_TOKEN").expect("TWILIO_AUTH_TOKEN not found"),
->>>>>>> Stashed changes
         }
     }
 

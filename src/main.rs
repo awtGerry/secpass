@@ -9,11 +9,13 @@
    decryption of the password.
 */
 
+mod user;
 mod passwd;
+mod product;
 mod db;
 mod mfa;
 
-use crate::passwd::User;
+use crate::user::User;
 
 use iced::widget::{
     column,

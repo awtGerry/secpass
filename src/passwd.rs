@@ -2,19 +2,7 @@ use crate::db;
 use crate::mfa;
 use bcrypt;
 
-pub struct User {
-    pub username: String,
-    pub password: String,
-}
-
-impl User {
-    pub fn new(username: &str, password: &str) -> User {
-        User {
-            username: username.to_string(),
-            password: password.to_string(),
-        }
-    }
-}
+use crate::user::User;
 
 #[derive(Debug)]
 pub enum PasswordError {
@@ -75,7 +63,7 @@ pub fn register_user(username: &str, password: &str) {
 
     let hashed_password = bcrypt::hash(&user.password, bcrypt::DEFAULT_COST).unwrap();
     let conn = db::create_db();
-    db::insert_user(&conn, &user.username, &hashed_password);
+    db::insert_user(&conn, user);
 }
 
 // Function to login a user
