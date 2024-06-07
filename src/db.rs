@@ -1,5 +1,4 @@
 use sqlite;
-use crate::user::{User, Role};
 
 /*
  * This file contains the functions to interact with the SQLite database.
@@ -8,16 +7,9 @@ use crate::user::{User, Role};
  * - insert_user: inserts a new user into the database and hashes the password with bcrypt
  */
 
-pub struct Product {
-    id: u8,
-    name: String,
-    price: f32,
-    quantity: u8
-}
-
 pub fn create_db() -> sqlite::Connection {
     let conn = sqlite::open("secpass.db").unwrap();
-    create_tables(&conn);
+    create_tables(&conn).unwrap();
     conn
 }
 
@@ -25,8 +17,8 @@ fn create_tables(conn: &sqlite::Connection) -> Result<(), sqlite::Error> {
     conn.execute(
         "
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY,
-            username TEXT NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
             password TEXT NOT NULL,
             role INTEGER NOT NULL,
             FOREIGN KEY (role) REFERENCES roles(id)
@@ -43,11 +35,6 @@ fn create_tables(conn: &sqlite::Connection) -> Result<(), sqlite::Error> {
             id INTEGER PRIMARY KEY,
             role TEXT NOT NULL
         );
-
-        INSERT OR IGNORE INTO roles (role) VALUES ('admin');
-        INSERT OR IGNORE INTO roles (role) VALUES ('client');
-        INSERT OR IGNORE INTO roles (role) VALUES ('worker');
         ",
     )
 }
-

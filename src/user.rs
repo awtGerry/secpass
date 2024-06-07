@@ -1,14 +1,15 @@
-use crate::db;
-
 use sqlite;
 
+#[derive(Debug, Clone)]
 pub struct User {
     pub id: u8,
-    pub username: String,
+    pub email: String,
     pub password: String,
     pub role: Role
 }
 
+#[derive(Debug, Clone)]
+#[allow(unused)]
 pub enum Role {
     Admin,
     Client,
@@ -16,10 +17,10 @@ pub enum Role {
 }
 
 impl User {
-    pub fn new(username: &str, password: &str) -> User {
+    pub fn new(email: &str, password: &str) -> User {
         User {
             id: 0,
-            username: String::from(username),
+            email: String::from(email),
             password: String::from(password),
             role: Role::Client
         }
@@ -28,22 +29,22 @@ impl User {
     // Insert a new user into the database with the password hashed
     pub fn insert_user(conn: &sqlite::Connection, user: User) {
         let role = match user.role {
-            Role::Admin => String::from("admin"),
-            Role::Client => String::from("client"),
-            Role::Worker => String::from("worker")
+            Role::Admin => 1,
+            Role::Client => 2,
+            Role::Worker => 3,
         };
 
         let query = format!(
-            "INSERT INTO users (username, password, role)
+            "INSERT INTO users (email, password, role)
             VALUES ('{}', '{}', {});",
-            user.username, user.password, role
+            user.email, user.password, role
         );
 
         conn.execute(&query).unwrap();
     }
 
     // I'll keep it for testing purposes
-    #[allow(unused)]
+    /* #[allow(unused)]
     fn get_all_users(conn: &sqlite::Connection) -> Vec<User> {
         let query = "SELECT * FROM users;";
 
@@ -54,5 +55,5 @@ impl User {
 
             true
         }).unwrap();
-    }
+    } */
 }

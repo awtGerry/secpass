@@ -16,9 +16,11 @@ mod db;
 mod mfa;
 
 use crate::user::User;
+use crate::product::Product;
 
 use iced::widget::{
     column,
+    Column,
     row,
     button,
     Container,
@@ -27,6 +29,7 @@ use iced::widget::{
     checkbox,
     TextInput,
     text,
+    scrollable,
 };
 use iced::{Theme, Command, Settings, Element, window, Application};
 
@@ -53,6 +56,16 @@ struct SecPassApp {
     error_msg: String,
     show_password: bool,
     verification_code: String,
+
+    conn: sqlite::Connection,
+    user: User,
+
+    new_product: bool,
+    product_opt: ProductOpt,
+    product_id_value: String,
+    product_name_value: String,
+    product_price_value: String,
+    product_quantity_value: String,
 }
 
 #[derive(Default)]
@@ -64,10 +77,11 @@ pub enum CodeMSG {
 
 #[derive(Debug, Default)]
 enum Pages {
-    #[default]
     Login,
     Register,
     MFA,
+    #[default]
+    Product
 }
 
 #[derive(Debug, Clone)]
@@ -82,6 +96,15 @@ enum App {
     ChangeToLogin,
     ChangeToRegister,
     SendCode,
+
+    ProductNameChanged(String),
+    ProductPriceChanged(String),
+    ProductQuantityChanged(String),
+
+    NewProduct,
+    SaveNewProduct(Product),
+    EditProduct(Product),
+    SaveChanges(Product),
 }
 
 impl Default for App {
@@ -100,7 +123,7 @@ impl Application for SecPassApp {
     fn new(_flags: Self::Flags) -> (Self, Command<App>) {
         (
             Self {
-                pages: Pages::Login,
+                pages: Pages::Product,
                 name_value: String::new(),
                 user_value: String::new(),
                 passwd_value: String::new(),
@@ -108,6 +131,16 @@ impl Application for SecPassApp {
                 error_msg: String::new(),
                 show_password: false,
                 verification_code: String::new(),
+
+                conn: db::create_db(),
+                user: User::new("", ""),
+
+                new_product: false,
+                product_opt: ProductOpt::Add,
+                product_id_value: String::new(),
+                product_name_value: String::new(),
+                product_price_value: String::new(),
+                product_quantity_value: String::new(),
             },
             Command::none()
         )
@@ -139,14 +172,13 @@ impl Application for SecPassApp {
             App::Login => {
                 let red: iced::Color = iced::Color::from_rgb8(210, 15, 57);
                 let green: iced::Color = iced::Color::from_rgb8(64, 160, 43);
-                let user = User::new(&self.user_value, &self.passwd_value);
-                if passwd::login_user(&user.username, &user.password) {
+                self.user = User::new(&self.user_value, &self.passwd_value);
+                if passwd::login_user(&self.user.email, &self.user.password) {
                     self.msg_color = green;
-                    // self.error_msg = String::from(format!("Welcome, {}!", user.username));
                     self.pages = Pages::MFA;
                 } else {
                     self.msg_color = red;
-                    self.error_msg = String::from("Invalid username or password");
+                    self.error_msg = String::from("Invalid email or password");
                 }
                 Command::none()
             }
@@ -181,18 +213,24 @@ impl Application for SecPassApp {
                 } else {
                     self.msg_color = green;
                     self.error_msg = String::from("Account created successfully");
-                    passwd::register_user(&user.username, &user.password);
+                    passwd::register_user(&self.conn, &user.email, &user.password);
                 }
                 Command::none()
             }
             App::ChangeToLogin => {
                 self.pages = Pages::Login;
+                // Clear the fields
+                self.user_value = String::new();
+                self.passwd_value = String::new();
                 self.show_password = false;
+                self.error_msg = String::new();
+
                 Command::none()
             }
             App::ChangeToRegister => {
                 self.pages = Pages::Register;
                 self.show_password = false;
+                self.error_msg = String::new();
                 Command::none()
             }
             App::CodeChanged(value) => {
@@ -200,7 +238,51 @@ impl Application for SecPassApp {
                 Command::none()
             }
             App::SendCode => {
-                self.error_msg = String::from("Welcome again!");
+                self.pages = Pages::Product;
+                // Clear the fields
+                self.user_value = String::new();
+                self.passwd_value = String::new();
+                self.show_password = false;
+                Command::none()
+            }
+            App::NewProduct => {
+                self.new_product = true;
+                self.product_opt = ProductOpt::Add;
+                self.product_id_value = String::new();
+                self.product_name_value = String::new();
+                self.product_price_value = String::new();
+                self.product_quantity_value = String::new();
+                Command::none()
+            }
+            App::SaveNewProduct(product) => {
+                product::Product::insert_product(&self.conn, product);
+                self.new_product = false;
+                Command::none()
+            }
+            App::EditProduct(product) => {
+                self.product_id_value = product.id.to_string();
+                self.product_name_value = product.name;
+                self.product_price_value = product.price.to_string();
+                self.product_quantity_value = product.quantity.to_string();
+                self.new_product = true;
+                self.product_opt = ProductOpt::Edit;
+                Command::none()
+            }
+            App::SaveChanges(product) => {
+                product::Product::update_product(&self.conn, product);
+                self.new_product = false;
+                Command::none()
+            }
+            App::ProductNameChanged(value) => {
+                self.product_name_value = value;
+                Command::none()
+            }
+            App::ProductPriceChanged(value) => {
+                self.product_price_value = value;
+                Command::none()
+            }
+            App::ProductQuantityChanged(value) => {
+                self.product_quantity_value = value;
                 Command::none()
             }
         }
@@ -382,6 +464,117 @@ impl Application for SecPassApp {
                 .align_items(iced::Alignment::Center);
                 container(content).width(iced::Length::Fill).height(iced::Length::Fill).into()
             }
+
+            // Product page
+            Pages::Product => {
+                let title = text("Welcome to the product page")
+                    .size(24)
+                    .style(iced::Color::from_rgb8(136, 57, 239))
+                    .width(iced::Length::Fill)
+                    .horizontal_alignment(iced::alignment::Horizontal::Center);
+
+                let product_inputs = {
+                    let name_input = TextInput::new("Product name", &self.product_name_value)
+                        .on_input(App::ProductNameChanged)
+                        .width(180)
+                        .padding(10);
+                    let price_input = TextInput::new("Product price", &self.product_price_value)
+                        .on_input(App::ProductPriceChanged)
+                        .width(180)
+                        .padding(10);
+                    let quantity_input = TextInput::new("Product quantity", &self.product_quantity_value)
+                        .on_input(App::ProductQuantityChanged)
+                        .width(180)
+                        .padding(10);
+                    let add_button = match self.product_opt {
+                        ProductOpt::Add => button("Add product")
+                            .on_press(App::SaveNewProduct(Product::new(
+                                self.product_name_value.clone(),
+                                match self.product_price_value.parse::<f32>() {
+                                    Ok(price) => price,
+                                    Err(_) => 0.0
+                                },
+                                match self.product_quantity_value.parse::<u16>() {
+                                    Ok(quantity) => quantity,
+                                    Err(_) => 0
+                                }
+                            )))
+                            .width(480)
+                            .padding([10, 20]),
+                        ProductOpt::Edit => button("Save changes")
+                            .on_press(App::SaveChanges(Product::new_with_id(
+                                match self.product_id_value.parse::<u8>() {
+                                    Ok(id) => id,
+                                    Err(_) => 0
+                                },
+                                self.product_name_value.clone(),
+                                match self.product_price_value.parse::<f32>() {
+                                    Ok(price) => price,
+                                    Err(_) => 0.0
+                                },
+                                match self.product_quantity_value.parse::<u16>() {
+                                    Ok(quantity) => quantity,
+                                    Err(_) => 0
+                                }
+                            )))
+                            .width(480)
+                            .padding([10, 20]),
+                    };
+                    let inputs = row![ name_input, price_input, quantity_input ].spacing(8);
+                    column![ inputs, add_button ].spacing(10)
+                };
+
+                let register_product = if self.new_product {
+                    column![ product_inputs ]
+                } else {
+                    column![ text("") ]
+                };
+
+                let product_list = product::Product::get_all_products(&self.conn);
+                let products: Vec<Element<'_, App>> = product_list
+                    .iter()
+                    .map(|product| {
+                        row![
+                            text(&product.id.to_string()).size(16).width(100),
+                            text(&product.name).size(16).width(100),
+                            text(&product.price.to_string()).size(16).width(100),
+                            text(&product.quantity.to_string()).size(16).width(100),
+                            button("Edit").on_press(App::EditProduct(product.clone())).width(100)
+                        ]
+                        .padding(15)
+                        .spacing(10)
+                        .into()
+                    })
+                    .collect();
+
+                let products = if products.is_empty() {
+                    scrollable(
+                        text("No products found").size(24)
+                    )
+                } else {
+                    let products = Column::with_children(products)
+                        .spacing(20)
+                        .width(iced::Length::Fill);
+                    scrollable(
+                        column![
+                            products
+                        ].spacing(20).align_items(iced::Alignment::Center)
+                    )
+                };
+
+                let buttons = row![
+                    button("+").on_press(App::NewProduct),
+                ].spacing(10);
+
+                let content = column![
+                    title,
+                    buttons,
+                    register_product,
+                    products
+                ].spacing(20).align_items(iced::Alignment::Center);
+
+                container(content).width(iced::Length::Fill).height(iced::Length::Fill).into()
+            }
         };
         page
     }
@@ -389,6 +582,11 @@ impl Application for SecPassApp {
     fn theme(&self) -> Theme {
         Theme::CatppuccinLatte
     }
+}
+
+enum ProductOpt {
+    Add,
+    Edit,
 }
 
 fn call_image<'a>(file_name: &str, width: u16) -> Container<'a, App> {

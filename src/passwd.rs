@@ -2,6 +2,7 @@ use crate::db;
 use crate::mfa;
 use bcrypt;
 
+use crate::user;
 use crate::user::User;
 
 #[derive(Debug)]
@@ -58,24 +59,22 @@ pub fn check_password(password: &str) -> Result<(), PasswordError> {
 
 // Function to register a user in the database
 // Here the password will be hashed and that hash will be stored in the database
-pub fn register_user(username: &str, password: &str) {
-    let user = User::new(username, password);
-
-    let hashed_password = bcrypt::hash(&user.password, bcrypt::DEFAULT_COST).unwrap();
-    let conn = db::create_db();
-    db::insert_user(&conn, user);
+pub fn register_user(conn: &sqlite::Connection, email: &str, password: &str) {
+    let hashed_password = bcrypt::hash(password, bcrypt::DEFAULT_COST).unwrap();
+    let user = User::new(email, &hashed_password);
+    user::User::insert_user(conn, user);
 }
 
 // Function to login a user
 // Here the password will be hashed and that hash will be compared with the hash stored in the database
 #[allow(unused)]
-pub fn login_user(username: &str, password: &str) -> bool {
-    let user = User::new(username, password);
+pub fn login_user(email: &str, password: &str) -> bool {
+    let user = User::new(email, password);
 
     let conn = db::create_db();
     let query = format!(
-        "SELECT * FROM users WHERE username = '{}';",
-        user.username
+        "SELECT * FROM users WHERE email = '{}';",
+        user.email
     );
 
     let mut found = false;
@@ -83,18 +82,18 @@ pub fn login_user(username: &str, password: &str) -> bool {
         let mut user = User::new("", "");
         for &(column, value) in pairs.iter() {
             match column {
-                "username" => user.username = String::from(value.unwrap()),
+                "email" => user.email = String::from(value.unwrap()),
                 "password" => user.password = String::from(value.unwrap()),
                 _ => (),
             }
         }
 
-        if user.username == username {
+        if user.email == email {
             // Decrypt the database password
             let hashed_password = bcrypt::verify(&password, &user.password).unwrap();
             if hashed_password {
                 found = true;
-                mfa::Mfa::new(user.username.clone()).send();
+                mfa::Mfa::new(user.email.clone()).send();
             }
         }
 
@@ -102,11 +101,4 @@ pub fn login_user(username: &str, password: &str) -> bool {
     }).unwrap();
 
     found
-}
-
-// I'll keep it for testing purposes
-#[allow(unused)]
-fn get_all_users() {
-    let conn = db::create_db();
-    db::get_all_users(&conn);
 }
