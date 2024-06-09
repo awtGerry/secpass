@@ -59,16 +59,20 @@ pub fn check_password(password: &str) -> Result<(), PasswordError> {
 
 // Function to register a user in the database
 // Here the password will be hashed and that hash will be stored in the database
-pub fn register_user(conn: &sqlite::Connection, email: &str, password: &str) {
+pub fn register_user(conn: &sqlite::Connection, email: &str, password: &str) -> String {
     let hashed_password = bcrypt::hash(password, bcrypt::DEFAULT_COST).unwrap();
     let user = User::new(email, &hashed_password);
-    user::User::insert_user(conn, user);
+    if user::User::insert_user(conn, user) {
+        return String::from("User registered successfully");
+    } else {
+        return String::from("User already exists");
+    }
 }
 
 // Function to login a user
 // Here the password will be hashed and that hash will be compared with the hash stored in the database
 #[allow(unused)]
-pub fn login_user(email: &str, password: &str) -> bool {
+pub fn login_user(email: &str, password: &str) -> (bool, Option<User>) {
     let user = User::new(email, password);
 
     let conn = db::create_db();
@@ -78,12 +82,18 @@ pub fn login_user(email: &str, password: &str) -> bool {
     );
 
     let mut found = false;
+    let mut user = User::new("", "");
     conn.iterate(query, |pairs| {
-        let mut user = User::new("", "");
         for &(column, value) in pairs.iter() {
             match column {
                 "email" => user.email = String::from(value.unwrap()),
                 "password" => user.password = String::from(value.unwrap()),
+                "role" => match value.unwrap().parse::<u8>().unwrap() {
+                    1 => user.role = user::Role::Admin,
+                    2 => user.role = user::Role::Client,
+                    3 => user.role = user::Role::Worker,
+                    _ => (),
+                },
                 _ => (),
             }
         }
@@ -100,5 +110,9 @@ pub fn login_user(email: &str, password: &str) -> bool {
         true
     }).unwrap();
 
-    found
+    if found {
+        (true, Some(user))
+    } else {
+        (false, None)
+    }
 }

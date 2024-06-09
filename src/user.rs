@@ -8,7 +8,7 @@ pub struct User {
     pub role: Role
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(unused)]
 pub enum Role {
     Admin,
@@ -27,12 +27,31 @@ impl User {
     }
 
     // Insert a new user into the database with the password hashed
-    pub fn insert_user(conn: &sqlite::Connection, user: User) {
+    pub fn insert_user(conn: &sqlite::Connection, user: User) -> bool {
         let role = match user.role {
             Role::Admin => 1,
             Role::Client => 2,
             Role::Worker => 3,
         };
+
+        let mut email_exists = false;
+        let check_email = format!(
+            "SELECT * FROM users WHERE email = '{}';",
+            user.email
+        );
+        conn.iterate(check_email, |pairs| {
+            for &(column, value) in pairs.iter() {
+                if column == "email" {
+                    email_exists = true;
+                }
+            }
+
+            true
+        }).unwrap();
+
+        if email_exists {
+            return false;
+        }
 
         let query = format!(
             "INSERT INTO users (email, password, role)
@@ -41,6 +60,8 @@ impl User {
         );
 
         conn.execute(&query).unwrap();
+
+        true
     }
 
     // I'll keep it for testing purposes

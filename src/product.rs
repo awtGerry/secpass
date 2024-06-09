@@ -47,6 +47,11 @@ impl Product {
         conn.execute(&query).unwrap();
     }
 
+    pub fn delete_product(conn: &sqlite::Connection, id: u8) {
+        let query = format!("DELETE FROM products WHERE id = {};", id);
+        conn.execute(&query).unwrap();
+    }
+
     // Get all products from the database
     pub fn get_all_products(conn: &sqlite::Connection) -> Vec<Product> {
         let query = "SELECT * FROM products;";

@@ -22,7 +22,6 @@ impl Mfa {
         let smtp_key = std::env::var("SMTP_KEY").expect("SMTP_KEY must be set");
         println!("Email: {}", email);
         println!("MFA code: {}", mfa_code);
-        println!("SMTP key: {}", smtp_key);
         Self {
             email,
             code: mfa_code,
